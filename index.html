@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MP4 → GIF 変換ツール</title>
+<style>
+  :root{
+    --bg:#141318;
+    --panel:#1C1B22;
+    --panel-alt:#201F27;
+    --border:#302E38;
+    --text:#EDEAE6;
+    --muted:#8D8A94;
+    --amber:#E2A542;
+    --amber-dim:#4a3d21;
+    --teal:#4FBDAE;
+    --danger:#D96C6C;
+    --radius:4px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.5;
+  }
+  .mono{
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Consolas,"Liberation Mono",monospace;
+  }
+  .muted{color:var(--muted);}
+  .app{
+    max-width:640px;
+    margin:0 auto;
+    padding:32px 20px 48px;
+  }
+  header{
+    text-align:center;
+    margin-bottom:24px;
+  }
+  header h1{
+    font-size:28px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    margin:0 0 6px;
+  }
+  header h1 span{color:var(--amber);}
+  .subtitle{
+    margin:0;
+    color:var(--muted);
+    font-size:14px;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    margin-bottom:16px;
+    overflow:hidden;
+  }
+  .sprockets{
+    height:14px;
+    background-color:var(--border);
+    background-image:radial-gradient(circle at 10px 7px, var(--panel) 4px, transparent 4.6px);
+    background-size:20px 14px;
+    background-repeat:repeat-x;
+  }
+  .dropzone{
+    padding:36px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .dropzone:hover, .dropzone.dragover{
+    background:var(--panel-alt);
+  }
+  .drop-label{
+    margin:0;
+    font-size:15px;
+  }
+  .drop-label span{
+    display:block;
+    margin-top:4px;
+    font-size:13px;
+  }
+  .meta-panel{padding:14px 18px;}
+  .meta-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:13px;
+  }
+  .meta-label{color:var(--muted);}
+  .meta-value{color:var(--amber);}
+  .settings-panel{padding:18px 18px 20px;}
+  .control-row{
+    display:grid;
+    grid-template-columns:96px 1fr 150px;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+  }
+  .control-row label{
+    font-size:13px;
+    color:var(--muted);
+  }
+  .control-row input[type=range]{
+    width:100%;
+    accent-color:var(--amber);
+  }
+  .control-row input[type=number]{
+    width:100%;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    color:var(--text);
+    padding:6px 8px;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Consolas,monospace;
+  }
+  .readout{
+    font-size:13px;
+    color:var(--amber);
+    text-align:right;
+    white-space:nowrap;
+  }
+  .unit{
+    font-size:12px;
+    color:var(--muted);
+  }
+  .hint{
+    font-size:12px;
+    margin:0 0 14px;
+  }
+  .hint.warn{color:var(--danger);}
+  .btn-primary{
+    display:block;
+    width:100%;
+    padding:12px;
+    background:var(--amber);
+    color:#1a1408;
+    font-weight:700;
+    font-size:14px;
+    border:none;
+    border-radius:var(--radius);
+    cursor:pointer;
+    letter-spacing:0.01em;
+  }
+  .btn-primary:disabled{
+    background:var(--amber-dim);
+    color:var(--muted);
+    cursor:not-allowed;
+  }
+  .btn-secondary{
+    display:inline-block;
+    padding:8px 16px;
+    background:var(--teal);
+    color:#0d211e;
+    font-weight:700;
+    font-size:13px;
+    border-radius:var(--radius);
+    text-decoration:none;
+  }
+  .btn-outline{
+    display:block;
+    width:100%;
+    padding:10px;
+    background:transparent;
+    color:var(--amber);
+    font-weight:700;
+    font-size:13px;
+    border:1px solid var(--amber-dim);
+    border-radius:var(--radius);
+    cursor:pointer;
+    margin-bottom:10px;
+  }
+  .btn-outline:hover{
+    border-color:var(--amber);
+  }
+  .btn-outline:disabled{
+    color:var(--muted);
+    border-color:var(--border);
+    cursor:not-allowed;
+  }
+  .progress-panel{padding:14px 18px;}
+  .progress-label{
+    font-size:12px;
+    color:var(--amber);
+    margin-bottom:8px;
+  }
+  .progress-track{
+    height:8px;
+    background:var(--panel-alt);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--amber);
+    transition:width 0.1s linear;
+  }
+  .output-panel{padding-bottom:14px;}
+  #gifPreview{
+    display:block;
+    width:100%;
+    height:auto;
+    background:var(--panel-alt);
+  }
+  .output-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 18px 0;
+  }
+  .footer-note{
+    font-size:12px;
+    text-align:center;
+    margin-top:8px;
+  }
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>MP4 <span>&rarr;</span> GIF</h1>
+    <p class="subtitle">ブラウザ内だけで動くローカル変換ツール</p>
+  </header>
+
+  <section class="panel dropzone-panel">
+    <div class="sprockets"></div>
+    <div id="dropzone" class="dropzone">
+      <input type="file" id="fileInput" accept="video/*" hidden>
+      <p class="drop-label" id="dropLabel">ここにMP4をドロップ<span>またはクリックして選択</span></p>
+    </div>
+    <div class="sprockets"></div>
+  </section>
+
+  <section class="panel meta-panel" id="metaPanel" hidden>
+    <div class="meta-row">
+      <span class="meta-label">元動画</span>
+      <span class="meta-value mono" id="metaInfo">--</span>
+    </div>
+  </section>
+
+  <section class="panel settings-panel" id="settingsPanel" hidden>
+    <div class="control-row">
+      <label for="scaleRange">解像度</label>
+      <input type="range" id="scaleRange" min="10" max="100" value="50" step="5">
+      <span class="readout mono" id="scaleReadout">50%</span>
+    </div>
+    <div class="control-row">
+      <label for="fpsRange">フレームレート</label>
+      <input type="range" id="fpsRange" min="2" max="24" value="10" step="1">
+      <span class="readout mono" id="fpsReadout">10 fps</span>
+    </div>
+    <div class="control-row">
+      <label for="startTime">開始位置</label>
+      <input type="number" id="startTime" min="0" step="0.1" value="0">
+      <span class="unit">秒</span>
+    </div>
+    <div class="control-row">
+      <label for="endTime">終了位置</label>
+      <input type="number" id="endTime" min="0" step="0.1" value="0">
+      <span class="unit">秒</span>
+    </div>
+    <p class="hint muted" id="estimateHint"></p>
+    <button id="estimateBtn" class="btn-outline">概算サイズを見積もる(数フレームだけ試し変換)</button>
+    <p class="hint muted" id="estimateSizeResult"></p>
+    <button id="convertBtn" class="btn-primary">GIFに変換する</button>
+  </section>
+
+  <section class="panel progress-panel" id="progressPanel" hidden>
+    <div class="progress-label mono" id="progressLabel">フレーム 0/0</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </section>
+
+  <section class="panel output-panel" id="outputPanel" hidden>
+    <div class="sprockets"></div>
+    <img id="gifPreview" alt="生成されたGIFプレビュー">
+    <div class="sprockets"></div>
+    <div class="output-meta">
+      <span class="mono" id="outputSize">--</span>
+      <a id="downloadLink" class="btn-secondary" download="output.gif">ダウンロード</a>
+    </div>
+  </section>
+
+  <p class="footer-note muted">動画ファイルは外部サーバーへ送信されず、すべてこの画面内で処理されます。長い動画・高解像度・高フレームレートほど変換に時間がかかります。</p>
+</div>
+
+<video id="videoEl" hidden playsinline muted></video>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<script>
+(function(){
+  const dropzone = document.getElementById('dropzone');
+  const dropLabel = document.getElementById('dropLabel');
+  const fileInput = document.getElementById('fileInput');
+  const videoEl = document.getElementById('videoEl');
+  const metaPanel = document.getElementById('metaPanel');
+  const metaInfo = document.getElementById('metaInfo');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const scaleRange = document.getElementById('scaleRange');
+  const scaleReadout = document.getElementById('scaleReadout');
+  const fpsRange = document.getElementById('fpsRange');
+  const fpsReadout = document.getElementById('fpsReadout');
+  const startTimeInput = document.getElementById('startTime');
+  const endTimeInput = document.getElementById('endTime');
+  const estimateHint = document.getElementById('estimateHint');
+  const estimateBtn = document.getElementById('estimateBtn');
+  const estimateSizeResult = document.getElementById('estimateSizeResult');
+  const convertBtn = document.getElementById('convertBtn');
+  const progressPanel = document.getElementById('progressPanel');
+  const progressLabel = document.getElementById('progressLabel');
+  const progressFill = document.getElementById('progressFill');
+  const outputPanel = document.getElementById('outputPanel');
+  const gifPreview = document.getElementById('gifPreview');
+  const outputSize = document.getElementById('outputSize');
+  const downloadLink = document.getElementById('downloadLink');
+
+  let srcW = 0, srcH = 0, duration = 0;
+  let workerBlobUrlPromise = null;
+
+  function getWorkerBlobUrl(){
+    if(!workerBlobUrlPromise){
+      workerBlobUrlPromise = fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js')
+        .then(r => r.text())
+        .then(code => URL.createObjectURL(new Blob([code], {type:'application/javascript'})));
+    }
+    return workerBlobUrlPromise;
+  }
+
+  function evenify(n){
+    n = Math.max(2, Math.floor(n));
+    return n % 2 === 0 ? n : n - 1;
+  }
+
+  function currentDims(){
+    const scale = parseInt(scaleRange.value, 10) / 100;
+    return { w: evenify(srcW * scale), h: evenify(srcH * scale) };
+  }
+
+  function updateScaleReadout(){
+    const { w, h } = currentDims();
+    scaleReadout.textContent = scaleRange.value + '% (' + w + '\u00d7' + h + ')';
+  }
+
+  function updateEstimate(){
+    const fps = parseInt(fpsRange.value, 10);
+    const start = parseFloat(startTimeInput.value) || 0;
+    const end = parseFloat(endTimeInput.value) || 0;
+    const span = Math.max(0, end - start);
+    const frames = Math.round(span * fps);
+    estimateHint.textContent = '推定フレーム数: ' + frames + ' 枚 (' + span.toFixed(1) + '秒 × ' + fps + 'fps)';
+    estimateHint.classList.toggle('warn', frames > 400 || frames <= 0);
+    if (frames > 400){
+      estimateHint.textContent += ' — フレーム数が多いため変換に時間がかかります';
+    }
+    convertBtn.disabled = frames <= 0;
+    estimateBtn.disabled = frames <= 0;
+    estimateSizeResult.textContent = '';
+  }
+
+  function resetOutput(){
+    outputPanel.hidden = true;
+    progressPanel.hidden = true;
+    progressFill.style.width = '0%';
+  }
+
+  function handleFile(file){
+    if(!file || !file.type.startsWith('video/')){
+      dropLabel.innerHTML = '動画ファイルを選択してください<span>MP4など</span>';
+      return;
+    }
+    resetOutput();
+    const url = URL.createObjectURL(file);
+    videoEl.src = url;
+    videoEl.onloadedmetadata = function(){
+      srcW = videoEl.videoWidth;
+      srcH = videoEl.videoHeight;
+      duration = videoEl.duration;
+      metaInfo.textContent = srcW + '\u00d7' + srcH + ' / ' + duration.toFixed(1) + '秒 / ' + file.name;
+      metaPanel.hidden = false;
+      settingsPanel.hidden = false;
+      startTimeInput.value = '0';
+      startTimeInput.max = duration;
+      endTimeInput.value = duration.toFixed(1);
+      endTimeInput.max = duration;
+      dropLabel.innerHTML = '選択中: ' + file.name + '<span>クリックして別の動画を選択</span>';
+      updateScaleReadout();
+      updateEstimate();
+    };
+  }
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+  ['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+  }));
+  dropzone.addEventListener('drop', e => {
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    handleFile(file);
+  });
+
+  scaleRange.addEventListener('input', updateScaleReadout);
+  fpsRange.addEventListener('input', () => {
+    fpsReadout.textContent = fpsRange.value + ' fps';
+    updateEstimate();
+  });
+  startTimeInput.addEventListener('input', updateEstimate);
+  endTimeInput.addEventListener('input', updateEstimate);
+
+  function seekTo(video, t){
+    return new Promise(resolve => {
+      let done = false;
+      function onSeeked(){
+        if(done) return;
+        done = true;
+        video.removeEventListener('seeked', onSeeked);
+        resolve();
+      }
+      video.addEventListener('seeked', onSeeked);
+      video.currentTime = t;
+      setTimeout(() => { if(!done){ done = true; video.removeEventListener('seeked', onSeeked); resolve(); } }, 1500);
+    });
+  }
+
+  estimateBtn.addEventListener('click', async function(){
+    const fps = parseInt(fpsRange.value, 10);
+    const start = Math.max(0, parseFloat(startTimeInput.value) || 0);
+    const end = Math.min(duration, parseFloat(endTimeInput.value) || duration);
+    const totalFrames = Math.max(1, Math.round((end - start) * fps));
+    const { w, h } = currentDims();
+    const sampleCount = Math.min(6, totalFrames);
+
+    estimateBtn.disabled = true;
+    convertBtn.disabled = true;
+    estimateSizeResult.textContent = 'サンプル ' + sampleCount + ' フレームを試し変換中…';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    const workerScript = await getWorkerBlobUrl();
+    const sampleGif = new GIF({
+      workers: 1,
+      quality: 10,
+      width: w,
+      height: h,
+      workerScript: workerScript
+    });
+
+    videoEl.pause();
+    for(let k = 0; k < sampleCount; k++){
+      const idx = sampleCount > 1 ? Math.round(k * (totalFrames - 1) / (sampleCount - 1)) : 0;
+      const t = Math.min(end, start + (idx / fps));
+      await seekTo(videoEl, t);
+      ctx.drawImage(videoEl, 0, 0, w, h);
+      sampleGif.addFrame(ctx, { copy: true, delay: Math.round(1000 / fps) });
+    }
+
+    sampleGif.on('finished', function(blob){
+      const perFrame = blob.size / sampleCount;
+      const estimateBytes = perFrame * totalFrames;
+      const kb = estimateBytes / 1024;
+      const sizeStr = kb > 1024 ? (kb/1024).toFixed(2) + ' MB' : kb.toFixed(0) + ' KB';
+      estimateSizeResult.textContent = '概算サイズ: 〜' + sizeStr + '(' + sampleCount + 'フレームの試し変換から外挿。実際の内容次第で前後します)';
+      estimateBtn.disabled = false;
+      convertBtn.disabled = false;
+    });
+
+    sampleGif.render();
+  });
+
+  convertBtn.addEventListener('click', async function(){
+    const fps = parseInt(fpsRange.value, 10);
+    const start = Math.max(0, parseFloat(startTimeInput.value) || 0);
+    const end = Math.min(duration, parseFloat(endTimeInput.value) || duration);
+    const totalFrames = Math.max(1, Math.round((end - start) * fps));
+    const { w, h } = currentDims();
+
+    convertBtn.disabled = true;
+    estimateBtn.disabled = true;
+    resetOutput();
+    progressPanel.hidden = false;
+    progressLabel.textContent = 'フレーム 0/' + totalFrames + ' を抽出中';
+    progressFill.style.width = '0%';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    const workerScript = await getWorkerBlobUrl();
+    const gif = new GIF({
+      workers: 2,
+      quality: 10,
+      width: w,
+      height: h,
+      workerScript: workerScript
+    });
+
+    videoEl.pause();
+    for(let i = 0; i < totalFrames; i++){
+      const t = Math.min(end, start + (i / fps));
+      await seekTo(videoEl, t);
+      ctx.drawImage(videoEl, 0, 0, w, h);
+      gif.addFrame(ctx, { copy: true, delay: Math.round(1000 / fps) });
+      progressLabel.textContent = 'フレーム ' + (i + 1) + '/' + totalFrames + ' を抽出中';
+      progressFill.style.width = Math.round(((i + 1) / totalFrames) * 60) + '%';
+    }
+
+    gif.on('progress', function(p){
+      progressLabel.textContent = 'GIFにエンコード中';
+      progressFill.style.width = (60 + Math.round(p * 40)) + '%';
+    });
+
+    gif.on('finished', function(blob){
+      const url = URL.createObjectURL(blob);
+      gifPreview.src = url;
+      downloadLink.href = url;
+      const kb = blob.size / 1024;
+      outputSize.textContent = kb > 1024 ? (kb/1024).toFixed(2) + ' MB' : kb.toFixed(0) + ' KB';
+      outputPanel.hidden = false;
+      progressPanel.hidden = true;
+      convertBtn.disabled = false;
+      estimateBtn.disabled = false;
+    });
+
+    gif.render();
+  });
+})();
+</script>
+</body>
+</html>
